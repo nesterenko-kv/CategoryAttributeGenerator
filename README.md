@@ -477,6 +477,18 @@ curl -X POST "http://localhost:8080/api/category-attributes" \
 
 ---
 
+### Security & Prompt Safety
+
+- The subcategory name is treated as **untrusted user input** and is explicitly marked as such in the system and user prompts.
+- The model is instructed to **ignore any instructions** that appear inside the subcategory name and use it only as a label.
+- Input length is bounded and normalized before being injected into the prompt to avoid prompt bloat and trivial DoS scenarios.
+- All OpenAI responses are strictly validated:
+  - must be valid JSON,
+  - must contain exactly three attributes,
+  - each attribute has a reasonable length and contains no control characters.
+- On any validation failure, the service logs the incident with a correlation id and returns a safe error response to the caller.
+- No secrets (API keys, internal URLs, SQL queries, etc.) are ever included in prompts, so even a successful prompt injection cannot exfiltrate sensitive data.
+
 ## Possible Next Steps
 
 If this were to evolve beyond a test task:

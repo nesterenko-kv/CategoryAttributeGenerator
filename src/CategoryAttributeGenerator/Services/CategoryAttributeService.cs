@@ -85,29 +85,46 @@ public sealed partial class CategoryAttributeService : ICategoryAttributeService
         return results.OrderBy(x => x.CategoryId).ToArray();
     }
     
+    private static string SanitizeCategoryName(string name)
+    {
+        string trimmed = name.Trim();
+
+        if (trimmed.Length > 200)
+        {
+            trimmed = trimmed[..200];
+        }
+
+        trimmed = trimmed.ReplaceLineEndings(" ");
+
+        return trimmed;
+    }
+    
     private async Task<IReadOnlyList<string>> GetAttributesForSubCategoryAsync(
         SubCategoryDto subCategory,
         CancellationToken cancellationToken
         )
-    { 
-        string cacheKey = BuildCacheKey(subCategory);
+    {
+        int categoryId = subCategory.CategoryId;
+        string sanitizedName = SanitizeCategoryName(subCategory.CategoryName);
+
+        string cacheKey = BuildCacheKey(categoryId, sanitizedName);
 
         if (_cache.TryGetValue(cacheKey, out IReadOnlyList<string>? cachedAttributes)
             && cachedAttributes is not null)
         {
-            LogCacheHitForSubcategory(subCategory.CategoryName, subCategory.CategoryId);
+            LogCacheHitForSubcategory(sanitizedName, categoryId);
 
             return cachedAttributes;
         }
 
-        LogCacheMissForSubcategory(subCategory.CategoryName, subCategory.CategoryId);
+        LogCacheMissForSubcategory(sanitizedName, categoryId);
         
         // Take prompts from configuration (with sensible defaults)
         string systemPrompt = _promptOptions.SystemPrompt;
 
         string userPrompt = _promptOptions
             .UserPromptTemplate
-            .Replace("{SubcategoryName}", subCategory.CategoryName);
+            .Replace("{SubcategoryName}", sanitizedName);
 
         OpenAiChatCompletionRequest request = new()
         {
@@ -130,7 +147,7 @@ public sealed partial class CategoryAttributeService : ICategoryAttributeService
         string? content = firstChoice?.Message.Content;
         if (string.IsNullOrWhiteSpace(content))
             throw new OpenAiException(
-                $"OpenAI returned an empty response for subcategory '{subCategory.CategoryName}'.");
+                $"OpenAI returned an empty response for subcategory '{sanitizedName}'.");
         
         List<string> attributes;
         try
@@ -139,16 +156,25 @@ public sealed partial class CategoryAttributeService : ICategoryAttributeService
             
             if (parsed?.Attributes is not { Count: 3 })
                 throw new OpenAiException(
-                    $"OpenAI response did not contain exactly three attributes for subcategory '{subCategory.CategoryName}'. Raw: {content}");
-
+                    $"OpenAI response did not contain exactly three attributes for subcategory '{sanitizedName}'. Raw: {content}");
+            
+            if (parsed.Attributes.Any(a =>
+                    string.IsNullOrWhiteSpace(a) ||
+                    a.Length > 50 ||
+                    a.Any(char.IsControl)))
+            {
+                throw new OpenAiException(
+                    $"OpenAI response contained invalid attribute values for subcategory '{subCategory.CategoryName}'. Raw: {content}");
+            }
+            
             attributes = parsed.Attributes;
         }
         catch (JsonException ex)
         {
-            LogFailedToParseJson(ex, subCategory.CategoryName, content);
+            LogFailedToParseJson(ex, sanitizedName, content);
 
             throw new OpenAiException(
-                $"Failed to parse attributes JSON for subcategory '{subCategory.CategoryName}'.", ex);
+                $"Failed to parse attributes JSON for subcategory '{sanitizedName}'.", ex);
         }
 
         _cache.Set(
@@ -164,11 +190,12 @@ public sealed partial class CategoryAttributeService : ICategoryAttributeService
     }
 
     private static string BuildCacheKey(
-        SubCategoryDto subCategory
+        int categoryId,
+        string categoryName
         )
     {
         // Cache key is based on category id + name. In a real system you might also
         // include locale, model name, or other parameters that affect the output.
-        return $"category-attributes:{subCategory.CategoryId}:{subCategory.CategoryName}";
+        return $"category-attributes:{categoryId}:{categoryName}";
     }
 }

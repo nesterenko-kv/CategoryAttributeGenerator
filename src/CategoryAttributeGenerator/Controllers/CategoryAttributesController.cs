@@ -52,7 +52,15 @@ public sealed class CategoryAttributesController : ControllerBase
         if (categoryGroups is null or { Count: 0 })
             return BadRequest(new ErrorResponse(
                 "Input must be a non-empty JSON array of category groups."));
-
+        
+        // TODO: add those magic consts to configs
+        if (categoryGroups.Count > 50 || categoryGroups.Sum(x => x.SubCategories.Count) > 500)
+        {
+            return BadRequest(new ErrorResponse(
+                "Too many categories in a single request. Please reduce the payload size.",
+                []));
+        }
+        
         try
         {
             IReadOnlyList<CategoryAttributesResultDto> result =
