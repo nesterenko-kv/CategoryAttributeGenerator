@@ -18,18 +18,24 @@
 
         <label for="inputJson">Categories:</label>
         <textarea id="inputJson" spellcheck="false"></textarea>
-
+        
         <div class="controls">
-            <button class="button" id="generateButton">Generate Attributes</button>
-            <div class="status" id="status">Idle.</div>
+            <div class="controls-buttons">
+                <button id="generateButton" class="button" type="button">Generate Attributes</button>
+                <button id="formatButton" class="button button-secondary" type="button">Format JSON</button>
+            </div>
+            <div id="status" class="status">Idle.</div>
         </div>
 
         <div class="output">
             <div class="output-header">
                 <h2>Output JSON</h2>
-                <div class="badge">
-                    <span class="badge-dot"></span>
-                    <span>Three attributes per subcategory</span>
+                <div class="output-header-actions">
+                    <button id="copyOutputButton" class="button button-secondary" type="button">Copy</button>
+                    <div class="badge">
+                        <span class="badge-dot"></span>
+                        <span>Three attributes per subcategory</span>
+                    </div>
                 </div>
             </div>
             <pre><code id="outputJson">// Attributes will appear here.</code></pre>

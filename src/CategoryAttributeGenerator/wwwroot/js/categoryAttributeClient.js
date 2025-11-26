@@ -8,8 +8,8 @@ export class CategoryAttributeClient {
     /**
      * @param {Object} options
      * @param {string} options.endpoint - API endpoint URL
-     * @param {ConsoleLogger} options.logger
-     * @param {ApiClient} options.apiClient
+     * @param {import("./logger.js").ConsoleLogger} options.logger
+     * @param {import("./apiClient.js").ApiClient} options.apiClient
      */
     constructor({ endpoint = "/api/category-attributes", logger, apiClient }) {
         this.endpoint = endpoint;
@@ -20,15 +20,13 @@ export class CategoryAttributeClient {
         this.outputEl = null;
         this.statusEl = null;
         this.buttonEl = null;
+        this.formatButtonEl = null;
+        this.copyOutputButtonEl = null;
 
         /** @type {AbortController | null} */
         this.currentAbortController = null;
     }
 
-    /**
-     * Initializes the client: resolves DOM elements, pre-fills sample payload,
-     * and wires default event handlers.
-     */
     init() {
         this._resolveElements();
         this._prefillSamplePayload();
@@ -65,6 +63,8 @@ export class CategoryAttributeClient {
         const outputEl = document.getElementById("outputJson");
         const statusEl = document.getElementById("status");
         const buttonEl = document.getElementById("generateButton");
+        const formatButtonEl = document.getElementById("formatButton");
+        const copyOutputButtonEl = document.getElementById("copyOutputButton");
 
         if (!inputEl || !outputEl || !statusEl || !buttonEl) {
             throw new Error("One or more required DOM elements are missing.");
@@ -74,6 +74,8 @@ export class CategoryAttributeClient {
         this.outputEl = outputEl;
         this.statusEl = statusEl;
         this.buttonEl = buttonEl;
+        this.formatButtonEl = formatButtonEl;
+        this.copyOutputButtonEl = copyOutputButtonEl;
     }
 
     _prefillSamplePayload() {
@@ -103,6 +105,7 @@ export class CategoryAttributeClient {
     _attachHandlers() {
         if (!this.buttonEl || !this.inputEl) return;
 
+        // Сохраняем ввод в localStorage
         this.inputEl.addEventListener("input", () => {
             try {
                 window.localStorage.setItem(STORAGE_KEY_INPUT_JSON, this.inputEl.value);
@@ -111,6 +114,7 @@ export class CategoryAttributeClient {
             }
         });
 
+        // Основная кнопка
         this.buttonEl.addEventListener("click", async () => {
             const traceId = this._createTraceId();
             this.logger.info("Generate button clicked.", traceId);
@@ -122,6 +126,24 @@ export class CategoryAttributeClient {
 
             await this._callBackend(payload, traceId);
         });
+
+        // Format JSON
+        if (this.formatButtonEl) {
+            this.formatButtonEl.addEventListener("click", () => {
+                const traceId = this._createTraceId();
+                this.logger.info("Format JSON button clicked.", traceId);
+                this._formatInputJson(traceId);
+            });
+        }
+
+        // Copy output
+        if (this.copyOutputButtonEl) {
+            this.copyOutputButtonEl.addEventListener("click", async () => {
+                const traceId = this._createTraceId();
+                this.logger.info("Copy output button clicked.", traceId);
+                await this._copyOutputToClipboard(traceId);
+            });
+        }
     }
 
     _parseInputJson(traceId) {
@@ -163,8 +185,65 @@ export class CategoryAttributeClient {
             return window.crypto.randomUUID();
         }
 
-        // Fallback: simple pseudo-random id
         return `client-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+    }
+
+    _formatInputJson(traceId) {
+        if (!this.inputEl) return;
+
+        const raw = this.inputEl.value.trim();
+        if (!raw) {
+            this.setStatus("error", "Nothing to format: input is empty.");
+            this.logger.warn("Format requested on empty input.", traceId);
+            return;
+        }
+
+        try {
+            const parsed = JSON.parse(raw);
+            const formatted = JSON.stringify(parsed, null, 2);
+            this.inputEl.value = formatted;
+            window.localStorage.setItem(STORAGE_KEY_INPUT_JSON, formatted);
+            this.setStatus("success", "Input JSON formatted.");
+            this.logger.info("Input JSON formatted.", traceId);
+        } catch (err) {
+            this.setStatus("error", "Cannot format: input is not valid JSON.");
+            this.logger.error("Failed to format input JSON.", traceId, err);
+        }
+    }
+
+    async _copyOutputToClipboard(traceId) {
+        if (!this.outputEl) return;
+
+        const text = this.outputEl.textContent || "";
+        if (!text.trim()) {
+            this.setStatus("error", "Nothing to copy: output is empty.");
+            this.logger.warn("Copy requested with empty output.", traceId);
+            return;
+        }
+
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+                this.setStatus("success", "Output JSON copied to clipboard.");
+                this.logger.info("Output JSON copied to clipboard.", traceId);
+            } else {
+                // Фоллбек для старых браузеров
+                const temp = document.createElement("textarea");
+                temp.value = text;
+                temp.style.position = "fixed";
+                temp.style.left = "-9999px";
+                document.body.appendChild(temp);
+                temp.select();
+                document.execCommand("copy");
+                document.body.removeChild(temp);
+
+                this.setStatus("success", "Output JSON copied to clipboard.");
+                this.logger.info("Output JSON copied to clipboard (fallback).", traceId);
+            }
+        } catch (err) {
+            this.setStatus("error", "Failed to copy output to clipboard.");
+            this.logger.error("Failed to copy output JSON.", traceId, err);
+        }
     }
 
     async _callBackend(payload, traceId) {
@@ -219,7 +298,6 @@ export class CategoryAttributeClient {
         } catch (err) {
             if (err.name === "AbortError") {
                 this.logger.info("Request was aborted.", traceId);
-                // show nothing to user, the new request already started
             } else {
                 this.setStatus("error", "Network error while calling backend: " + err);
                 this.logger.error("Network error while calling backend.", traceId, err);
@@ -227,7 +305,6 @@ export class CategoryAttributeClient {
         } finally {
             const elapsedMs = performance.now() - start;
 
-            // сбрасываем только если этот контроллер ещё актуален
             if (this.currentAbortController === abortController) {
                 this.currentAbortController = null;
                 this.buttonEl.disabled = false;

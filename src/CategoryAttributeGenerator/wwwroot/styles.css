@@ -69,6 +69,12 @@ textarea:focus {
     gap: 12px;
 }
 
+.controls-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .button {
     display: inline-flex;
     align-items: center;
@@ -94,6 +100,33 @@ textarea:focus {
 .button:not(:disabled):hover {
     transform: translateY(-1px);
     box-shadow: 0 14px 35px rgba(37, 99, 235, 0.6);
+}
+
+.button-secondary {
+    background: transparent;
+    color: #e5e7eb;
+    box-shadow: none;
+    border: 1px solid #4b5563;
+    padding-inline: 12px;
+}
+
+.button-secondary:not(:disabled):hover {
+    background: rgba(148, 163, 184, 0.12);
+    box-shadow: none;
+    transform: none;
+}
+
+.output-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.output-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .status {
@@ -165,7 +198,17 @@ code {
         align-items: stretch;
     }
 
+    .controls-buttons {
+        justify-content: flex-start;
+    }
+
     .status {
         text-align: left;
+    }
+
+    .output-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
     }
 }
