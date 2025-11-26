@@ -12,7 +12,11 @@ builder.Services.Configure<OpenAiOptions>(builder.Configuration.GetSection("Open
 builder.Services.AddHttpClient<IOpenAiClient, OpenAiClient>();
 
 // Prompt options for category attribute generation
-builder.Services.Configure<CategoryPromptOptions>(builder.Configuration.GetSection("CategoryPrompting"));
+builder.Services.Configure<CategoryPromptOptions>(
+    builder.Configuration.GetSection("CategoryPrompting"));
+
+builder.Services.Configure<CategoryAttributesOptions>(
+    builder.Configuration.GetSection("CategoryAttributes"));
 
 builder.Services.AddScoped<ICategoryAttributeService, CategoryAttributeService>();
 

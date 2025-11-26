@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using CategoryAttributeGenerator.Models;
 using CategoryAttributeGenerator.Services.OpenAI;
@@ -8,49 +7,6 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
 namespace CategoryAttributeGenerator.Services;
-
-
-/// <summary>
-/// Prompt configuration used when generating attributes for a product subcategory.
-/// Moves all hard-coded prompt text into configuration.
-/// </summary>
-public sealed class CategoryPromptOptions
-{
-    /// <summary>
-    ///     System message that defines the assistant role and global behavior.
-    /// </summary>
-    [Required]
-    public string SystemPrompt { get; set; } =
-        "You are an expert in ecommerce product data. " +
-        "Given a product subcategory name, you must return the three most important, " +
-        "commonly used product attributes for that subcategory. " +
-        "Return attributes that are useful for faceted navigation and product comparison.";
-
-    /// <summary>
-    ///     User message template used for each subcategory.
-    ///     The placeholder <c>{SubcategoryName}</c> is replaced with the actual subcategory name.
-    /// </summary>
-    [Required]
-    public string UserPromptTemplate { get; set; } =
-        """
-        Subcategory name: "{SubcategoryName}"
-
-        Return a JSON object in the following exact shape:
-
-        {
-          "attributes": [
-            "Attribute 1",
-            "Attribute 2",
-            "Attribute 3"
-          ]
-        }
-
-        Rules:
-        - Always return exactly three attribute names.
-        - Attribute names must be concise (max 3 words), in English, and human-readable.
-        - Do not include explanations, comments, or additional fields.
-        """;
-}
 
 /// <summary>
 ///     Default implementation of <see cref="ICategoryAttributeService" />.
@@ -63,12 +19,14 @@ public sealed partial class CategoryAttributeService : ICategoryAttributeService
     private readonly IMemoryCache _cache;
     private readonly OpenAiOptions _openAiOptions;
     private readonly CategoryPromptOptions _promptOptions;
+    private readonly CategoryAttributesOptions _attributesOptions;
     private readonly JsonSerializerOptions _jsonOptions;
 
     public CategoryAttributeService(
         IOpenAiClient openAiClient,
         IOptions<OpenAiOptions> openAiOptions,
         IOptions<CategoryPromptOptions> promptOptions,
+        IOptions<CategoryAttributesOptions> attributesOptions,
         ILogger<CategoryAttributeService> logger,
         IMemoryCache cache
         )
@@ -78,12 +36,14 @@ public sealed partial class CategoryAttributeService : ICategoryAttributeService
         _cache = cache;
         _openAiOptions = openAiOptions.Value;
         _promptOptions = promptOptions.Value;
+        _attributesOptions = attributesOptions.Value;
 
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         };
     }
+    
     public async Task<IReadOnlyList<CategoryAttributesResultDto>> GenerateAttributesAsync(
         IReadOnlyList<CategoryGroupDto> categoryGroups,
         CancellationToken cancellationToken = default)
@@ -106,11 +66,9 @@ public sealed partial class CategoryAttributeService : ICategoryAttributeService
             return [];
         }
 
-        // better to extract to config
-        const int maxConcurrency = 5;
         ParallelOptions options = new()
         {
-            MaxDegreeOfParallelism = maxConcurrency,
+            MaxDegreeOfParallelism = _attributesOptions.MaxConcurrency,
             CancellationToken = cancellationToken
         };
 
@@ -198,7 +156,7 @@ public sealed partial class CategoryAttributeService : ICategoryAttributeService
             attributes,
             new MemoryCacheEntryOptions
             {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1),
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(_attributesOptions.CacheDurationMinutes),
                 Size = attributes.Count
             });
 
