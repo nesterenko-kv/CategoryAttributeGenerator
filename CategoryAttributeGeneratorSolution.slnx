@@ -1,3 +1,6 @@
 <Solution>
+  <Folder Name="/docs/">
+    <File Path="README.md" />
+  </Folder>
   <Project Path="src/CategoryAttributeGenerator/CategoryAttributeGenerator.csproj" />
 </Solution>

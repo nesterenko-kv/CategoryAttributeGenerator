@@ -411,6 +411,43 @@ Click **Generate Attributes**:
 
 ---
 
+## Running with Docker
+
+The service can be containerized and run as a standalone container.
+
+### 1. Build the image
+
+From the solution root (where the `src/` folder lives):
+
+```bash
+docker build -t category-attribute-generator .
+```
+
+### 2. Run the container
+
+You need to pass the OpenAI API key via environment variable and publish the HTTP port:
+```bash
+docker run --rm \
+  -e OPENAI_API_KEY="sk-..." \
+  -p 8080:8080 \
+  category-attribute-generator
+```
+
+### 3. Access the UI and API
+
+- By default the app listens on port `8080` inside the container, so the example above exposes it as:
+http://localhost:8080
+
+- Call the API directly:
+
+```bash
+curl -X POST "http://localhost:8080/api/category-attributes" \
+  -H "Content-Type: application/json" \
+  -d '[{ "categoryName": "TVs", "subCategories": [ { "categoryId": 80, "categoryName": "TVs" } ] }]'
+```
+
+---
+
 ## Design Notes
 
 - **Separation of concerns**
