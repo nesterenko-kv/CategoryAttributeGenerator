@@ -1,3 +1,4 @@
+const STORAGE_KEY_INPUT_JSON = "categoryAttributeGenerator.inputJson";
 
 /**
  * Lightweight client for the Category Attribute Generator UI.
@@ -76,6 +77,15 @@ export class CategoryAttributeClient {
     }
 
     _prefillSamplePayload() {
+        if (!this.inputEl) return;
+
+        const stored = window.localStorage.getItem(STORAGE_KEY_INPUT_JSON);
+        if (stored && stored.trim().length > 0) {
+            this.inputEl.value = stored;
+            this.logger.info("Restored input JSON from localStorage.", undefined);
+            return;
+        }
+
         const sampleInput = [
             {
                 categoryName: "TVs",
@@ -87,13 +97,19 @@ export class CategoryAttributeClient {
             }
         ];
 
-        if (this.inputEl) {
-            this.inputEl.value = JSON.stringify(sampleInput, null, 2);
-        }
+        this.inputEl.value = JSON.stringify(sampleInput, null, 2);
     }
 
     _attachHandlers() {
-        if (!this.buttonEl) return;
+        if (!this.buttonEl || !this.inputEl) return;
+
+        this.inputEl.addEventListener("input", () => {
+            try {
+                window.localStorage.setItem(STORAGE_KEY_INPUT_JSON, this.inputEl.value);
+            } catch (err) {
+                this.logger.warn("Failed to persist input JSON to localStorage.", undefined, err);
+            }
+        });
 
         this.buttonEl.addEventListener("click", async () => {
             const traceId = this._createTraceId();
