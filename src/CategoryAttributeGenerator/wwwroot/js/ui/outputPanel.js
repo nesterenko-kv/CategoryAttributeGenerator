@@ -5,22 +5,18 @@ export class OutputPanel {
      * @param {StatusBar} statusBar
      */
     constructor(element, logger, statusBar) {
-        this.el = element;      // <code id="outputJson">
+        this.el = element;
         this.logger = logger;
         this.statusBar = statusBar;
     }
 
     setJson(data) {
         this.el.textContent = JSON.stringify(data, null, 2);
-
-        this._applyPrism();
         this._highlight();
     }
 
     setRaw(text) {
         this.el.textContent = text ?? "";
-
-        this._applyPrism();
         this._highlight();
     }
 
@@ -51,21 +47,10 @@ export class OutputPanel {
         }
     }
 
-    _applyPrism() {
-        if (!window.Prism || typeof Prism.highlightElement !== "function") {
-            return;
-        }
-
-        try {
-            Prism.highlightElement(this.el);
-        } catch (err) {
-            this.logger.warn("Prism.highlightElement failed.", undefined, err);
-        }
-    }
-
     _highlight() {
-        this.el.classList.remove("code-output-highlight");
+        // eslint-disable-next-line no-unused-expressions
         void this.el.offsetWidth;
+
         this.el.classList.add("code-output-highlight");
     }
 }
