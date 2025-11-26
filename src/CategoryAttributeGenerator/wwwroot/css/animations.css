@@ -1,0 +1,85 @@
+/* Плавный въезд основной карточки */
+.card {
+    animation: card-enter 420ms ease-out;
+    animation-fill-mode: backwards;
+}
+
+@keyframes card-enter {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.99);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Лёгкий подсвет вывода при обновлении */
+.code-output-highlight {
+    animation: output-flash 600ms ease-out;
+}
+
+@keyframes output-flash {
+    0% {
+        background-color: rgba(56, 189, 248, 0.25);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+/* Пульсация зелёного статуса на удачу */
+.status.success {
+    animation: status-pulse 900ms ease-out;
+}
+
+@keyframes status-pulse {
+    0% {
+        transform: translateY(0);
+        text-shadow: 0 0 0 rgba(34, 197, 94, 0.5);
+    }
+    40% {
+        transform: translateY(-1px);
+        text-shadow: 0 0 10px rgba(34, 197, 94, 0.8);
+    }
+    100% {
+        transform: translateY(0);
+        text-shadow: 0 0 0 rgba(34, 197, 94, 0);
+    }
+}
+
+/* Спиннер на кнопке во время загрузки */
+.button-loading {
+    position: relative;
+    padding-right: 32px; /* место под спиннер */
+}
+
+.button-loading::after {
+    content: "";
+    position: absolute;
+    right: 10px;
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    border-width: 2px;
+    border-style: solid;
+    border-color: rgba(226, 232, 240, 0.4);
+    border-top-color: #e5e7eb;
+    animation: button-spinner 600ms linear infinite;
+}
+
+@keyframes button-spinner {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Уважение к системе: отключаем анимации, если пользователь их не хочет */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+}

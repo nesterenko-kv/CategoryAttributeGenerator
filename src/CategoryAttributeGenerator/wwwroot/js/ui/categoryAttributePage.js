@@ -170,9 +170,12 @@ export class CategoryAttributePage {
         btn.dataset.baseText = baseText;
 
         btn.disabled = isBusy;
+
         if (isBusy) {
             btn.textContent = baseText + " …";
+            btn.classList.add("button-loading");
         } else {
+            btn.classList.remove("button-loading");
             btn.textContent = baseText;
         }
     }

@@ -1,6 +1,3 @@
-/**
- * Handles showing output JSON and copying it to clipboard.
- */
 export class OutputPanel {
     /**
      * @param {HTMLElement} element
@@ -15,15 +12,15 @@ export class OutputPanel {
 
     setJson(data) {
         this.el.textContent = JSON.stringify(data, null, 2);
+        this._highlight();
     }
 
     setRaw(text) {
         this.el.textContent = text ?? "";
+        this._highlight();
     }
-    
-    async copyToClipboard(traceId) {
-        if (!this.el) return;
 
+    async copyToClipboard(traceId) {
         const text = this.el.textContent || "";
         if (!text.trim()) {
             this.statusBar.set("error", "Nothing to copy: output is empty.");
@@ -48,5 +45,12 @@ export class OutputPanel {
             this.statusBar.set("error", "Failed to copy output to clipboard.");
             this.logger.error("Failed to copy output JSON.", traceId, err);
         }
+    }
+
+    _highlight() {
+        // eslint-disable-next-line no-unused-expressions
+        void this.el.offsetWidth;
+
+        this.el.classList.add("code-output-highlight");
     }
 }
