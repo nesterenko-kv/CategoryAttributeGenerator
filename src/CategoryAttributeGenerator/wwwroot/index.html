@@ -4,12 +4,17 @@
     <meta charset="utf-8"/>
     <title>Category Attribute Generator</title>
     <meta content="width=device-width, initial-scale=1" name="viewport"/>
-    <link rel="stylesheet" href="css/base.css" />
-    <link rel="stylesheet" href="css/layout.css" />
-    <link rel="stylesheet" href="css/components.css" />
-    <link rel="stylesheet" href="css/responsive.css" />
-    <link rel="stylesheet" href="css/animations.css" />
-    <script type="module" src="js/main.js"></script>
+
+    <link href="https://cdn.jsdelivr.net/npm/prismjs@1/themes/prism-tomorrow.min.css" rel="stylesheet"/>
+    <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-core.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-json.min.js"></script>
+
+    <link href="css/base.css" rel="stylesheet"/>
+    <link href="css/layout.css" rel="stylesheet"/>
+    <link href="css/components.css" rel="stylesheet"/>
+    <link href="css/responsive.css" rel="stylesheet"/>
+    <link href="css/animations.css" rel="stylesheet"/>
+    <script src="js/main.js" type="module"></script>
 </head>
 <body>
 <div class="container">
@@ -21,28 +26,31 @@
         </p>
 
         <label for="inputJson">Categories:</label>
-        <textarea id="inputJson" spellcheck="false"></textarea>
-        
+        <div class="editor">
+            <pre class="editor-highlight"><code class="language-json" id="inputHighlight"></code></pre>
+            <textarea id="inputJson" spellcheck="false"></textarea>
+        </div>
+
         <div class="controls">
             <div class="controls-buttons">
-                <button id="generateButton" class="button" type="button">Generate Attributes</button>
-                <button id="formatButton" class="button button-secondary" type="button">Format JSON</button>
+                <button class="button" id="generateButton" type="button">Generate Attributes</button>
+                <button class="button button-secondary" id="formatButton" type="button">Format JSON</button>
             </div>
-            <div id="status" class="status">Idle.</div>
+            <div class="status" id="status">Idle.</div>
         </div>
 
         <div class="output">
             <div class="output-header">
                 <h2>Output JSON</h2>
                 <div class="output-header-actions">
-                    <button id="copyOutputButton" class="button button-secondary" type="button">Copy</button>
+                    <button class="button button-secondary" id="copyOutputButton" type="button">Copy</button>
                     <div class="badge">
                         <span class="badge-dot"></span>
                         <span>Three attributes per subcategory</span>
                     </div>
                 </div>
             </div>
-            <pre><code id="outputJson">// Attributes will appear here.</code></pre>
+            <pre><code class="language-json" id="outputJson"></code></pre>
         </div>
 
         <div class="footer">

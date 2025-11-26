@@ -29,18 +29,19 @@ export class CategoryAttributePage {
 
     init() {
         const inputEl = /** @type {HTMLTextAreaElement|null} */ (document.getElementById("inputJson"));
+        const inputHighlightEl = /** @type {HTMLElement|null} */ (document.getElementById("inputHighlight"));
         const outputEl = document.getElementById("outputJson");
         const statusEl = document.getElementById("status");
         const generateButton = /** @type {HTMLButtonElement|null} */ (document.getElementById("generateButton"));
         const formatButton = /** @type {HTMLButtonElement|null} */ (document.getElementById("formatButton"));
         const copyButton = /** @type {HTMLButtonElement|null} */ (document.getElementById("copyOutputButton"));
 
-        if (!inputEl || !outputEl || !statusEl || !generateButton) {
+        if (!inputEl || !inputHighlightEl || !outputEl || !statusEl || !generateButton) {
             throw new Error("One or more required DOM elements are missing.");
         }
 
         this.statusBar = new StatusBar(statusEl);
-        this.inputEditor = new InputEditor(inputEl, this.logger, this.statusBar);
+        this.inputEditor = new InputEditor(inputEl, inputHighlightEl, this.logger, this.statusBar);
         this.outputPanel = new OutputPanel(outputEl, this.logger, this.statusBar);
         this.generateButton = generateButton;
         this.formatButton = formatButton;
