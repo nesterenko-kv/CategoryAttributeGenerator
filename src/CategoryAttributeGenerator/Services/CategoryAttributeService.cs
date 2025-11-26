@@ -124,7 +124,7 @@ public sealed partial class CategoryAttributeService : ICategoryAttributeService
             results.Add(new CategoryAttributesResultDto(sub.CategoryId, attributes));
         });
 
-        return results.ToArray();
+        return results.OrderBy(x => x.CategoryId).ToArray();
     }
     
     private async Task<IReadOnlyList<string>> GetAttributesForSubCategoryAsync(
