@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using CategoryAttributeGenerator.Models;
@@ -83,35 +84,47 @@ public sealed partial class CategoryAttributeService : ICategoryAttributeService
             PropertyNameCaseInsensitive = true
         };
     }
-
     public async Task<IReadOnlyList<CategoryAttributesResultDto>> GenerateAttributesAsync(
         IReadOnlyList<CategoryGroupDto> categoryGroups,
-        CancellationToken cancellationToken = default
-        )
+        CancellationToken cancellationToken = default)
     {
-        List<CategoryAttributesResultDto> results = [];
-
-        // A very simple, sequential implementation is used here for clarity.
-        // In a production setting we might fan out with controlled concurrency.
         foreach (CategoryGroupDto group in categoryGroups)
         {
             if (group.SubCategories is null or { Count: 0 })
             {
                 LogCategoryHasNoSubcategories(group.CategoryName);
-                
-                continue;
-            }
-
-            foreach (SubCategoryDto sub in group.SubCategories)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                IReadOnlyList<string> attributes = await GetAttributesForSubCategoryAsync(sub, cancellationToken);
-                results.Add(new CategoryAttributesResultDto(sub.CategoryId, attributes));
             }
         }
 
-        return results;
+        SubCategoryDto[] subCategories = categoryGroups
+            .Where(g => g.SubCategories is { Count: > 0 })
+            .SelectMany(g => g.SubCategories)
+            .ToArray();
+
+        if (subCategories.Length == 0)
+        {
+            return [];
+        }
+
+        // better to extract to config
+        const int maxConcurrency = 5;
+        ParallelOptions options = new()
+        {
+            MaxDegreeOfParallelism = maxConcurrency,
+            CancellationToken = cancellationToken
+        };
+
+        ConcurrentBag<CategoryAttributesResultDto> results = [];
+
+        await Parallel.ForEachAsync(subCategories, options, async (sub, ct) =>
+        {
+            IReadOnlyList<string> attributes = await GetAttributesForSubCategoryAsync(sub, ct)
+                .ConfigureAwait(false);
+
+            results.Add(new CategoryAttributesResultDto(sub.CategoryId, attributes));
+        });
+
+        return results.ToArray();
     }
     
     private async Task<IReadOnlyList<string>> GetAttributesForSubCategoryAsync(
