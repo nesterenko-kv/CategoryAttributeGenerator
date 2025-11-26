@@ -153,7 +153,7 @@ export class CategoryAttributePage {
                 this._setButtonBusy(false);
 
                 const baseText = this.generateButton.dataset.baseText || "Generate Attributes";
-                this.generateButton.textContent = `${baseText} (${elapsedUs.toLocaleString()} ms)`;
+                this.generateButton.textContent = `${baseText} (${elapsedMs.toLocaleString()} ms)`;
 
                 this.logger.info("Request completed.", traceId, {
                     elapsedMs
