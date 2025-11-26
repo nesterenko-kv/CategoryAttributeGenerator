@@ -20,4 +20,11 @@ public sealed class OpenAiOptions
     ///     Base URL for the chat completions endpoint.
     /// </summary>
     public string ApiUrl { get; set; } = "https://api.openai.com/v1/chat/completions";
+
+    /// <summary>
+    ///     Controls randomness in the model output.
+    ///     Lower values (for example, 0–0.3) make responses more
+    ///     deterministic, higher values make them more diverse.
+    /// </summary>
+    public float Temperature { get; set; } = 0.2f;
 }

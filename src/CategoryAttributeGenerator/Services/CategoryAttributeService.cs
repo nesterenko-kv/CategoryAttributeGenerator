@@ -119,7 +119,7 @@ public sealed partial class CategoryAttributeService : ICategoryAttributeService
                 new OpenAiMessage("system", systemPrompt),
                 new OpenAiMessage("user", userPrompt)
             ],
-            Temperature = 0.2f,
+            Temperature = _openAiOptions.Temperature,
             ResponseFormat = new OpenAiResponseFormat { Type = "json_object" }
         };
 
