@@ -1,6 +1,6 @@
-import { ConsoleLogger } from "./logger.js";
-import { ApiClient } from "./apiClient.js";
-import { CategoryAttributeClient } from "./categoryAttributeClient.js";
+import { ConsoleLogger } from "./core/logger.js";
+import { ApiClient } from "./core/apiClient.js";
+import { CategoryAttributePage } from "./ui/categoryAttributePage.js";
 
 document.addEventListener("DOMContentLoaded", () => {
     try {
@@ -10,14 +10,14 @@ document.addEventListener("DOMContentLoaded", () => {
             logger
         });
 
-        const client = new CategoryAttributeClient({
-            endpoint: "/api/category-attributes",
+        const page = new CategoryAttributePage({
             logger,
             apiClient
         });
 
-        client.init();
+        page.init();
     } catch (err) {
+        // eslint-disable-next-line no-console
         console.error(err);
 
         const statusEl = document.getElementById("status");

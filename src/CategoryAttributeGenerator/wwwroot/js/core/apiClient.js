@@ -1,3 +1,5 @@
+import { ConsoleLogger } from "./logger.js";
+
 /**
  * Minimal API client wrapper around fetch for JSON POST requests.
  */
