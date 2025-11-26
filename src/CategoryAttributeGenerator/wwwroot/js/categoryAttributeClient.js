@@ -19,6 +19,9 @@ export class CategoryAttributeClient {
         this.outputEl = null;
         this.statusEl = null;
         this.buttonEl = null;
+
+        /** @type {AbortController | null} */
+        this.currentAbortController = null;
     }
 
     /**
@@ -150,6 +153,14 @@ export class CategoryAttributeClient {
 
     async _callBackend(payload, traceId) {
         if (!this.outputEl || !this.buttonEl) return;
+        // отменяем предыдущий запрос, если был
+        if (this.currentAbortController) {
+            this.logger.info("Aborting previous in-flight request.", traceId);
+            this.currentAbortController.abort();
+        }
+
+        const abortController = new AbortController();
+        this.currentAbortController = abortController;
 
         this._setButtonBusy(true);
         this.setStatus("idle", "Calling backend and OpenAI…");
@@ -158,7 +169,11 @@ export class CategoryAttributeClient {
         const start = performance.now();
 
         try {
-            const { response, text } = await this.apiClient.postJson(payload, traceId);
+            const { response, text } = await this.apiClient.postJson(
+                payload,
+                traceId,
+                abortController.signal
+            );
 
             let data;
             try {
@@ -186,18 +201,27 @@ export class CategoryAttributeClient {
 
             this.outputEl.textContent = JSON.stringify(data, null, 2);
         } catch (err) {
-            this.setStatus("error", "Network error while calling backend: " + err);
-            this.logger.error("Network error while calling backend.", traceId, err);
+            if (err.name === "AbortError") {
+                this.logger.info("Request was aborted.", traceId);
+                // show nothing to user, the new request already started
+            } else {
+                this.setStatus("error", "Network error while calling backend: " + err);
+                this.logger.error("Network error while calling backend.", traceId, err);
+            }
         } finally {
             const elapsedMs = performance.now() - start;
 
-            this.buttonEl.disabled = false;
-            const baseText = this.buttonEl.dataset.baseText || "Generate Attributes";
-            this.buttonEl.textContent = `${baseText} (${elapsedMs.toLocaleString()} ms)`;
+            // сбрасываем только если этот контроллер ещё актуален
+            if (this.currentAbortController === abortController) {
+                this.currentAbortController = null;
+                this.buttonEl.disabled = false;
+                const baseText = this.buttonEl.dataset.baseText || "Generate Attributes";
+                this.buttonEl.textContent = `${baseText} (${elapsedMs.toLocaleString()} ms)`;
 
-            this.logger.info("Request completed.", traceId, {
-                elapsedMs
-            });
+                this.logger.info("Request completed.", traceId, {
+                    elapsedMs
+                });
+            }
         }
     }
 }

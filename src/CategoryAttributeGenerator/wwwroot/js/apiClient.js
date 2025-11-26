@@ -16,9 +16,10 @@ export class ApiClient {
      * Sends a JSON POST request to the configured endpoint.
      * @param {unknown} body - Request payload.
      * @param {string} traceId - Correlation id to be sent in headers.
+     * @param {AbortSignal} abortSignal - AbortSignal object associated with request.
      * @returns {Promise<{ response: Response, text: string }>}
      */
-    async postJson(body, traceId) {
+    async postJson(body, traceId, abortSignal) {
         const headers = {
             "Content-Type": "application/json"
         };
@@ -34,7 +35,8 @@ export class ApiClient {
         const response = await fetch(this.endpoint, {
             method: "POST",
             headers,
-            body: JSON.stringify(body)
+            body: JSON.stringify(body),
+            signal: abortSignal
         });
 
         const text = await response.text();
