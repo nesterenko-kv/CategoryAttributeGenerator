@@ -38,6 +38,17 @@ public sealed class CategoryAttributesController : ControllerBase
         CancellationToken cancellationToken
         )
     {
+        // TODO: extract to middleware:
+        string? traceIdFromHeader = HttpContext.Request.Headers["X-Trace-Id"].FirstOrDefault();
+        string traceId = string.IsNullOrWhiteSpace(traceIdFromHeader)
+            ? HttpContext.TraceIdentifier
+            : traceIdFromHeader;
+
+        using IDisposable? scope = _logger.BeginScope(new Dictionary<string, object?>
+        {
+            ["TraceId"] = traceId
+        });
+
         if (categoryGroups is null or { Count: 0 })
             return BadRequest(new ErrorResponse(
                 "Input must be a non-empty JSON array of category groups."));
