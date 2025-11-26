@@ -5,6 +5,7 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
+builder.Services.AddMemoryCache();
 
 // Bind OpenAI options and register HttpClient-based client.
 builder.Services.Configure<OpenAiOptions>(builder.Configuration.GetSection("OpenAI"));

@@ -13,4 +13,16 @@ public partial class CategoryAttributeService
         string categoryName,
         string content
         );
+
+    [LoggerMessage(LogLevel.Debug, "Cache hit for subcategory '{CategoryName}' (Id: {CategoryId})")]
+    partial void LogCacheHitForSubcategory(
+        string CategoryName,
+        int CategoryId
+        );
+
+    [LoggerMessage(LogLevel.Debug, "Cache miss for subcategory '{CategoryName}' (Id: {CategoryId}); calling OpenAI.")]
+    partial void LogCacheMissForSubcategory(
+        string CategoryName,
+        int CategoryId
+        );
 }

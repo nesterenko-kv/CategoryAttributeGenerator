@@ -3,6 +3,7 @@ using System.Text.Json;
 using CategoryAttributeGenerator.Models;
 using CategoryAttributeGenerator.Services.OpenAI;
 using CategoryAttributeGenerator.Services.OpenAI.Data;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
 namespace CategoryAttributeGenerator.Services;
@@ -58,6 +59,7 @@ public sealed partial class CategoryAttributeService : ICategoryAttributeService
 {
     private readonly IOpenAiClient _openAiClient;
     private readonly ILogger<CategoryAttributeService> _logger;
+    private readonly IMemoryCache _cache;
     private readonly OpenAiOptions _openAiOptions;
     private readonly CategoryPromptOptions _promptOptions;
     private readonly JsonSerializerOptions _jsonOptions;
@@ -66,11 +68,13 @@ public sealed partial class CategoryAttributeService : ICategoryAttributeService
         IOpenAiClient openAiClient,
         IOptions<OpenAiOptions> openAiOptions,
         IOptions<CategoryPromptOptions> promptOptions,
-        ILogger<CategoryAttributeService> logger
+        ILogger<CategoryAttributeService> logger,
+        IMemoryCache cache
         )
     {
         _openAiClient = openAiClient;
         _logger = logger;
+        _cache = cache;
         _openAiOptions = openAiOptions.Value;
         _promptOptions = promptOptions.Value;
 
@@ -115,6 +119,18 @@ public sealed partial class CategoryAttributeService : ICategoryAttributeService
         CancellationToken cancellationToken
         )
     { 
+        string cacheKey = BuildCacheKey(subCategory);
+
+        if (_cache.TryGetValue(cacheKey, out IReadOnlyList<string>? cachedAttributes)
+            && cachedAttributes is not null)
+        {
+            LogCacheHitForSubcategory(subCategory.CategoryName, subCategory.CategoryId);
+
+            return cachedAttributes;
+        }
+
+        LogCacheMissForSubcategory(subCategory.CategoryName, subCategory.CategoryId);
+        
         // Take prompts from configuration (with sensible defaults)
         string systemPrompt = _promptOptions.SystemPrompt;
 
@@ -144,7 +160,8 @@ public sealed partial class CategoryAttributeService : ICategoryAttributeService
         if (string.IsNullOrWhiteSpace(content))
             throw new OpenAiException(
                 $"OpenAI returned an empty response for subcategory '{subCategory.CategoryName}'.");
-
+        
+        List<string> attributes;
         try
         {
             AttributeListResponse? parsed = JsonSerializer.Deserialize<AttributeListResponse>(content, _jsonOptions);
@@ -153,7 +170,7 @@ public sealed partial class CategoryAttributeService : ICategoryAttributeService
                 throw new OpenAiException(
                     $"OpenAI response did not contain exactly three attributes for subcategory '{subCategory.CategoryName}'. Raw: {content}");
 
-            return parsed.Attributes;
+            attributes = parsed.Attributes;
         }
         catch (JsonException ex)
         {
@@ -162,5 +179,25 @@ public sealed partial class CategoryAttributeService : ICategoryAttributeService
             throw new OpenAiException(
                 $"Failed to parse attributes JSON for subcategory '{subCategory.CategoryName}'.", ex);
         }
+
+        _cache.Set(
+            cacheKey,
+            attributes,
+            new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1),
+                Size = attributes.Count
+            });
+
+        return attributes;
+    }
+
+    private static string BuildCacheKey(
+        SubCategoryDto subCategory
+        )
+    {
+        // Cache key is based on category id + name. In a real system you might also
+        // include locale, model name, or other parameters that affect the output.
+        return $"category-attributes:{subCategory.CategoryId}:{subCategory.CategoryName}";
     }
 }
