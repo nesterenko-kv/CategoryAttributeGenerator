@@ -9,7 +9,7 @@ namespace CategoryAttributeGenerator.Services.OpenAI;
 /// <summary>
 ///     Default HttpClient-based implementation for calling OpenAI's chat completions API.
 /// </summary>
-public sealed class OpenAiClient : IOpenAiClient
+public sealed partial class OpenAiClient : IOpenAiClient
 {
     private readonly HttpClient _httpClient;
     private readonly JsonSerializerOptions _jsonOptions;
@@ -62,8 +62,7 @@ public sealed class OpenAiClient : IOpenAiClient
                 ? responseContent[..500]
                 : responseContent;
 
-            _logger.LogError("OpenAI returned non-success status code {StatusCode}. Body snippet: {BodySnippet}",
-                (int)response.StatusCode, snippet);
+            LogOpenAiReturnedNonSuccess((int)response.StatusCode, snippet);
 
             throw new OpenAiException(
                 $"OpenAI request failed with status {(int)response.StatusCode} ({response.StatusCode}). " +
@@ -95,6 +94,5 @@ public sealed class OpenAiClient : IOpenAiClient
         }
         
         return null;
-
     }
 }

@@ -10,6 +10,9 @@ builder.Services.AddControllers();
 builder.Services.Configure<OpenAiOptions>(builder.Configuration.GetSection("OpenAI"));
 builder.Services.AddHttpClient<IOpenAiClient, OpenAiClient>();
 
+// Prompt options for category attribute generation
+builder.Services.Configure<CategoryPromptOptions>(builder.Configuration.GetSection("CategoryPrompting"));
+
 builder.Services.AddScoped<ICategoryAttributeService, CategoryAttributeService>();
 
 WebApplication app = builder.Build();

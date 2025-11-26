@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using CategoryAttributeGenerator.Models;
 using CategoryAttributeGenerator.Services.OpenAI;
@@ -6,50 +7,72 @@ using Microsoft.Extensions.Options;
 
 namespace CategoryAttributeGenerator.Services;
 
+
+/// <summary>
+/// Prompt configuration used when generating attributes for a product subcategory.
+/// Moves all hard-coded prompt text into configuration.
+/// </summary>
+public sealed class CategoryPromptOptions
+{
+    /// <summary>
+    ///     System message that defines the assistant role and global behavior.
+    /// </summary>
+    [Required]
+    public string SystemPrompt { get; set; } =
+        "You are an expert in ecommerce product data. " +
+        "Given a product subcategory name, you must return the three most important, " +
+        "commonly used product attributes for that subcategory. " +
+        "Return attributes that are useful for faceted navigation and product comparison.";
+
+    /// <summary>
+    ///     User message template used for each subcategory.
+    ///     The placeholder <c>{SubcategoryName}</c> is replaced with the actual subcategory name.
+    /// </summary>
+    [Required]
+    public string UserPromptTemplate { get; set; } =
+        """
+        Subcategory name: "{SubcategoryName}"
+
+        Return a JSON object in the following exact shape:
+
+        {
+          "attributes": [
+            "Attribute 1",
+            "Attribute 2",
+            "Attribute 3"
+          ]
+        }
+
+        Rules:
+        - Always return exactly three attribute names.
+        - Attribute names must be concise (max 3 words), in English, and human-readable.
+        - Do not include explanations, comments, or additional fields.
+        """;
+}
+
 /// <summary>
 ///     Default implementation of <see cref="ICategoryAttributeService" />.
 ///     Responsible for building prompts, calling OpenAI and parsing the results.
 /// </summary>
-public sealed class CategoryAttributeService : ICategoryAttributeService
+public sealed partial class CategoryAttributeService : ICategoryAttributeService
 {
-    private const string SystemPrompt = "You are an expert in ecommerce product data. " +
-                                        "Given a product subcategory name, you must return the three most important, " +
-                                        "commonly used product attributes for that subcategory. " +
-                                        "Return attributes that are useful for faceted navigation and product comparison.";
-
-    private const string UserPromptFormat = """
-                                            Subcategory name: "{0}"
-
-                                            Return a JSON object in the following exact shape:
-
-                                            {{
-                                              "attributes": [
-                                                "Attribute 1",
-                                                "Attribute 2",
-                                                "Attribute 3"
-                                              ]
-                                            }}
-
-                                            Rules:
-                                            - Always return exactly three attribute names.
-                                            - Attribute names must be concise (max 3 words), in English, and human-readable.
-                                            - Do not include explanations, comments, or additional fields.
-                                            """;
-
     private readonly IOpenAiClient _openAiClient;
     private readonly ILogger<CategoryAttributeService> _logger;
-    private readonly OpenAiOptions _options;
+    private readonly OpenAiOptions _openAiOptions;
+    private readonly CategoryPromptOptions _promptOptions;
     private readonly JsonSerializerOptions _jsonOptions;
 
     public CategoryAttributeService(
         IOpenAiClient openAiClient,
-        IOptions<OpenAiOptions> options,
+        IOptions<OpenAiOptions> openAiOptions,
+        IOptions<CategoryPromptOptions> promptOptions,
         ILogger<CategoryAttributeService> logger
         )
     {
         _openAiClient = openAiClient;
         _logger = logger;
-        _options = options.Value;
+        _openAiOptions = openAiOptions.Value;
+        _promptOptions = promptOptions.Value;
 
         _jsonOptions = new JsonSerializerOptions
         {
@@ -70,8 +93,7 @@ public sealed class CategoryAttributeService : ICategoryAttributeService
         {
             if (group.SubCategories is null or { Count: 0 })
             {
-                _logger.LogInformation("Category group '{CategoryName}' has no subcategories; skipping.",
-                    group.CategoryName);
+                LogCategoryHasNoSubcategories(group.CategoryName);
                 
                 continue;
             }
@@ -92,17 +114,22 @@ public sealed class CategoryAttributeService : ICategoryAttributeService
         SubCategoryDto subCategory,
         CancellationToken cancellationToken
         )
-    {
-        string userPrompt = string.Format(UserPromptFormat, subCategory.CategoryName);
+    { 
+        // Take prompts from configuration (with sensible defaults)
+        string systemPrompt = _promptOptions.SystemPrompt;
+
+        string userPrompt = _promptOptions
+            .UserPromptTemplate
+            .Replace("{SubcategoryName}", subCategory.CategoryName);
 
         OpenAiChatCompletionRequest request = new()
         {
-            Model = string.IsNullOrWhiteSpace(_options.Model)
+            Model = string.IsNullOrWhiteSpace(_openAiOptions.Model)
                 ? "gpt-4.1-mini"
-                : _options.Model,
+                : _openAiOptions.Model,
             Messages =
             [
-                new OpenAiMessage("system", SystemPrompt),
+                new OpenAiMessage("system", systemPrompt),
                 new OpenAiMessage("user", userPrompt)
             ],
             Temperature = 0.2f,
@@ -112,7 +139,8 @@ public sealed class CategoryAttributeService : ICategoryAttributeService
         OpenAiChatCompletionResponse response =
             await _openAiClient.CreateChatCompletionAsync(request, cancellationToken);
 
-        string? content = response.Choices.FirstOrDefault()?.Message?.Content;
+        OpenAiChoice? firstChoice = response.Choices.FirstOrDefault();
+        string? content = firstChoice?.Message.Content;
         if (string.IsNullOrWhiteSpace(content))
             throw new OpenAiException(
                 $"OpenAI returned an empty response for subcategory '{subCategory.CategoryName}'.");
@@ -120,7 +148,8 @@ public sealed class CategoryAttributeService : ICategoryAttributeService
         try
         {
             AttributeListResponse? parsed = JsonSerializer.Deserialize<AttributeListResponse>(content, _jsonOptions);
-            if (parsed is null || parsed.Attributes.Count != 3)
+            
+            if (parsed?.Attributes is not { Count: 3 })
                 throw new OpenAiException(
                     $"OpenAI response did not contain exactly three attributes for subcategory '{subCategory.CategoryName}'. Raw: {content}");
 
@@ -128,9 +157,7 @@ public sealed class CategoryAttributeService : ICategoryAttributeService
         }
         catch (JsonException ex)
         {
-            _logger.LogWarning(ex,
-                "Failed to parse OpenAI JSON for subcategory '{CategoryName}'. Raw content: {Content}",
-                subCategory.CategoryName, content);
+            LogFailedToParseJson(ex, subCategory.CategoryName, content);
 
             throw new OpenAiException(
                 $"Failed to parse attributes JSON for subcategory '{subCategory.CategoryName}'.", ex);
