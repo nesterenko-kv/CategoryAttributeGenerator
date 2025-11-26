@@ -30,31 +30,14 @@ public sealed class CategoryAttributesController : ControllerBase
     ///     Accepts a JSON array of category groups, calls OpenAI for each subcategory
     ///     and returns the three most relevant product attributes per subcategory.
     /// </summary>
-    /// <param name="requestBody">Raw JSON request body.</param>
+    /// <param name="categoryGroups">An array of category groups</param>
     /// <param name="cancellationToken"></param>
     [HttpPost]
     public async Task<IActionResult> GenerateAttributes(
-        [FromBody] JsonElement requestBody,
+        [FromBody] List<CategoryGroupDto> categoryGroups,
         CancellationToken cancellationToken
         )
     {
-        List<CategoryGroupDto>? categoryGroups;
-
-        try
-        {
-            // We deserialize manually to have better control over error handling.
-            categoryGroups = JsonSerializer.Deserialize<List<CategoryGroupDto>>(
-                requestBody.GetRawText(),
-                JsonSerializerOptions);
-        }
-        catch (JsonException ex)
-        {
-            _logger.LogWarning(ex, "Invalid JSON input for category hierarchy.");
-            return BadRequest(new ErrorResponse(
-                "Invalid JSON format. Expected an array of category groups.",
-                [ex.Message]));
-        }
-
         if (categoryGroups is null or { Count: 0 })
             return BadRequest(new ErrorResponse(
                 "Input must be a non-empty JSON array of category groups."));
