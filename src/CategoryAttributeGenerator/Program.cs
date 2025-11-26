@@ -9,7 +9,10 @@ builder.Services.AddMemoryCache();
 
 // Bind OpenAI options and register HttpClient-based client.
 builder.Services.Configure<OpenAiOptions>(builder.Configuration.GetSection("OpenAI"));
-builder.Services.AddHttpClient<IOpenAiClient, OpenAiClient>();
+builder.Services.AddHttpClient<IOpenAiClient, OpenAiClient>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 
 // Prompt options for category attribute generation
 builder.Services.Configure<CategoryPromptOptions>(
